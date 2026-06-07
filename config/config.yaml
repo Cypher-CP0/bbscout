@@ -1,0 +1,23 @@
+output_dir: "./output"
+wordlist: "./wordlists/dns.txt"
+
+tools:
+  subfinder:   "subfinder"
+  assetfinder: "assetfinder"
+  dnsx:        "dnsx"
+  naabu:       "naabu"
+  httpx:       "httpx"
+  gowitness:   "gowitness"
+  katana:      "katana"
+  gau:         "gau"
+  waybackurls: "waybackurls"
+  nuclei: "/home/prabhat/go/bin/nuclei"
+  subzy:       "subzy"
+
+nuclei:
+  templates: "~/.local/nuclei-templates"
+  severity: "medium,high,critical"
+
+ollama:
+  host: "http://localhost:11434"
+  model: "qwen3"

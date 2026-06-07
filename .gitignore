@@ -1,0 +1,27 @@
+# build output
+bbscout
+bbscout.exe
+
+# scan output — contains sensitive target data
+output/
+
+# wordlists
+wordlists/
+
+# env files
+.env
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Go
+*.test
+*.out
+vendor/
