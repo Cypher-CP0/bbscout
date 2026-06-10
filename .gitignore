@@ -1,5 +1,6 @@
 # build output
 bbscout
+bbscout-mcp.exe
 bbscout.exe
 
 # scan output — contains sensitive target data

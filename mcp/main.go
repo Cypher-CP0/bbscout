@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/viper"
@@ -9,17 +11,15 @@ import (
 	"github.com/Cypher-CP0/bbscout/mcp/tools"
 )
 
-func main(){
+func main() {
 	loadConfig()
 
-	s:= server.NewMCPServer(
+	s := server.NewMCPServer(
 		"bbscout",
 		"0.1.0",
 		server.WithToolCapabilities(true),
-
 	)
 
-	// register all tools
 	tools.RegisterRecon(s)
 	tools.RegisterCrawl(s)
 	tools.RegisterScan(s)
@@ -32,12 +32,26 @@ func main(){
 	}
 }
 
-func loadConfig(){
-	viper.SetConfigFile("./config/config.yaml")
+func loadConfig() {
+	// try config relative to binary first, then working directory
+	exe, err := os.Executable()
+	if err == nil {
+		exeDir := filepath.Dir(exe)
+		viper.AddConfigPath(exeDir + "/config")
+		viper.AddConfigPath(exeDir)
+	}
+	viper.AddConfigPath("./config")
+	viper.AddConfigPath(".")
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("[warn] could not load config: %v, using defaults", err)
+	} else {
+		log.Printf("[bbscout-mcp] loaded config: %s", viper.ConfigFileUsed())
 	}
 
+	// defaults
 	viper.SetDefault("output_dir", "./output")
 	viper.SetDefault("tools.subfinder", "subfinder")
 	viper.SetDefault("tools.assetfinder", "assetfinder")
