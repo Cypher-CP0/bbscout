@@ -29,6 +29,8 @@ func init() {
 	triageCmd.Flags().String("output", "", "output markdown report path (optional)")
 	triageCmd.Flags().Int("concurrency", 5, "parallel Ollama requests")
 	triageCmd.Flags().Int("threshold", triage.ScoreThreshold, "min heuristic score to send to Ollama (lower = more entries)")
+	triageCmd.Flags().Bool("multi-agent", false, "use two-stage multi-model pipeline (ovftank/unisast + xploiter/pentester)")
+	triageCmd.Flags().String("multi-agent-host", "", "Ollama host for multi-agent models (default: same as ollama.host)")
 	triageCmd.MarkFlagRequired("input")
 }
 
@@ -124,7 +126,19 @@ func runTriage(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// ── Ollama analysis ───────────────────────────────────────────────────────
+	// ── Multi-agent or single model analysis ─────────────────────────────────
+
+	multiAgent, _ := cmd.Flags().GetBool("multi-agent")
+	multiAgentHost, _ := cmd.Flags().GetString("multi-agent-host")
+	if multiAgentHost == "" {
+		multiAgentHost = ollamaHost
+	}
+
+	if multiAgent {
+		return runMultiAgentTriage(toAnalyze, target, outputFile, multiAgentHost, concurrency, noNoise)
+	}
+
+	// ── Single model Ollama analysis ─────────────────────────────────────────
 
 	fmt.Printf("\n[stage 5/5] analyzing %d entries with Ollama (concurrency: %d)\n", len(toAnalyze), concurrency)
 	fmt.Println("[triage] press Ctrl+C to stop early\n")
@@ -208,4 +222,52 @@ func truncateURL(url string, max int) string {
 		return url
 	}
 	return url[:max] + "..."
+}
+
+func runMultiAgentTriage(
+	toAnalyze []triage.TrafficEntry,
+	target, outputFile, multiAgentHost string,
+	concurrency int,
+	noNoise bool,
+) error {
+	fmt.Printf("\n[stage 5/5] multi-agent triage — %d entries\n", len(toAnalyze))
+	fmt.Println("[multi-agent] generator: ovftank/unisast")
+	fmt.Println("[multi-agent] checker:   xploiter/pentester")
+	fmt.Printf("[multi-agent] host:      %s\n\n", multiAgentHost)
+
+	triager := triage.NewMultiAgentTriager(multiAgentHost)
+
+	if err := triager.Ping(); err != nil {
+		return fmt.Errorf("multi-agent models not reachable: %w\n\nMake sure SSH tunnel is running:\n  ssh -i ~/.ssh/bbscout-key2.pem -L 11435:localhost:11434 prabhat@57.158.26.172 -N &", err)
+	}
+
+	findings, err := triager.AnalyzeBatch(toAnalyze, concurrency)
+	if err != nil {
+		return fmt.Errorf("multi-agent analysis: %w", err)
+	}
+
+	if noNoise {
+		var clean []*triage.Finding
+		for _, f := range findings {
+			if f.Severity != "noise" {
+				clean = append(clean, f)
+			}
+		}
+		findings = clean
+	}
+
+	if len(findings) == 0 {
+		fmt.Println("[multi-agent] no findings after analysis")
+		return nil
+	}
+
+	triage.PrintSummary(findings)
+	os.MkdirAll(fmt.Sprintf("./output/%s", target), 0755)
+	if err := triage.WriteFindingsMarkdown(findings, target, outputFile); err != nil {
+		fmt.Println("[warn] could not write report:", err)
+	} else {
+		fmt.Printf("[triage] report saved → %s\n", outputFile)
+	}
+
+	return nil
 }

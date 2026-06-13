@@ -20,9 +20,11 @@ func main() {
 		server.WithToolCapabilities(true),
 	)
 
+	// register all tools
 	tools.RegisterRecon(s)
 	tools.RegisterCrawl(s)
 	tools.RegisterScan(s)
+	tools.RegisterProbe(s)
 	tools.RegisterTriage(s)
 
 	log.Println("[bbscout-mcp] server starting on stdio")

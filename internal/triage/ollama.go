@@ -251,3 +251,24 @@ func parseFinding(content string, entry TrafficEntry) (*Finding, error) {
 		NextSteps:   raw.NextSteps,
 	}, nil
 }
+
+// doRequest sends any JSON payload to Ollama /api/chat and returns raw response body.
+func (c *OllamaClient) doRequest(payload interface{}) ([]byte, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal: %w", err)
+	}
+	resp, err := c.client.Post(
+		fmt.Sprintf("%s/api/chat", c.Host),
+		"application/json",
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
+}

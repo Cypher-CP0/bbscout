@@ -19,5 +19,5 @@ nuclei:
   severity: "medium,high,critical"
 
 ollama:
-  host: "http://localhost:11434"
+  host: "http://172.30.240.1:11434"
   model: "qwen3"
